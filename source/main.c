@@ -8,11 +8,17 @@
 
 #define HALF_WIDTH 128
 #define HALF_HEIGHT 96
+#define MAXR 64
 
 #define HUE_RESOLUTION 32
 #define SAT_RESOLUTION 1
 
+#define SLIDER_HUE_MIN 40
+#define SLIDER_HUE_MAX 200
 #define SLIDER_HUE_Y 162
+
+#define SLIDER_SAT_MIN 40
+#define SLIDER_SAT_MAX 140
 #define SLIDER_SAT_X 224
 
 int max(int x, int y) {
@@ -89,12 +95,24 @@ int hsv_to_rgb(int h, float v, float s) {
   return RGB15((int)((r1 + m) * 31), (int)((g1 + m) * 31), (int)((b1 + m) * 31));
 }
 
+int hue_resolution(int x) {
+  x = x - SLIDER_HUE_MIN;
+  int inc = (SLIDER_HUE_MAX - SLIDER_HUE_MIN) / 7;
+  return (1<<7)>>(x / inc);
+}
+
+int sat_resolution(int y) {
+  y = y - SLIDER_SAT_MIN;
+  int inc = (SLIDER_SAT_MAX - SLIDER_SAT_MIN) / 6;
+  return (1<<6)>>(y / inc);
+}
+
 void draw_wheel(int hueres, int satres) {
   for(s16 a = 0; a < DEGREES_IN_CIRCLE; a += (32 * hueres)) {
     if(angleToDegrees(a) < 0) break;
 
-    for(int r = 0; r < 70; r+=satres) {
-      int c = hsv_to_rgb(angleToDegrees(a), 1, (float)r/70);
+    for(int r = 0; r < MAXR; r+=satres) {
+      int c = hsv_to_rgb(angleToDegrees(a), 1, (float)r/MAXR);
 
       for(int i = 0; i < hueres; i++) {
         s16 x = cosLerp(a + 32 * i);
@@ -110,9 +128,42 @@ void draw_wheel(int hueres, int satres) {
   }
 }
 
-int main() {
-  /* lcdSwap(); */
+int slider_hue_x = 120;
+int slider_sat_y = 92;
 
+void vblank() {
+  scanKeys();
+  int held = keysHeld();
+
+  if(held & KEY_TOUCH) {
+    touchPosition touch;
+    touchRead(&touch);
+
+    if(abs(slider_hue_x + 8 - touch.px) < 16 && abs(SLIDER_HUE_Y + 8 - touch.py) < 16) {
+      copy_slider_gfx(1, 1, slider_hue_gfx);
+      slider_hue_x = max(SLIDER_HUE_MIN, min(SLIDER_HUE_MAX, touch.px - 8));
+    } else {
+      copy_slider_gfx(1, 0, slider_hue_gfx);
+    }
+
+    if(abs(SLIDER_SAT_X + 8 - touch.px) < 16 && abs(slider_sat_y + 8 - touch.py) < 16) {
+      copy_slider_gfx(0, 1, slider_sat_gfx);
+      slider_sat_y = max(SLIDER_SAT_MIN, min(SLIDER_SAT_MAX, touch.py - 8));
+    } else {
+      copy_slider_gfx(0, 0, slider_sat_gfx);
+    }
+
+  } else {
+    copy_slider_gfx(1, 0, slider_hue_gfx);
+    copy_slider_gfx(0, 0, slider_sat_gfx);
+  }
+
+  set_slider_gfx(SLIDER_HUE_ENTRY, slider_hue_x, SLIDER_HUE_Y, slider_hue_gfx);
+  set_slider_gfx(SLIDER_SAT_ENTRY, SLIDER_SAT_X, slider_sat_y, slider_sat_gfx);
+  oamUpdate(&oamSub);
+}
+
+int main() {
   // Main screen
   videoSetMode(MODE_FB0);
   vramSetBankA(VRAM_A_LCD);
@@ -125,46 +176,9 @@ int main() {
   oamInit(&oamSub, SpriteMapping_1D_32, false);
   init_sliders_gfx();
 
-  int slider_hue_x = 120;
-  int slider_sat_y = 92;
-
-  draw_wheel(HUE_RESOLUTION, slider_sat_y / 50);
-
-  touchPosition touch;
+  irqSet(IRQ_VBLANK, vblank);
 
   while(1) {
-    scanKeys();
-    int held = keysHeld();
-
-    if(held & KEY_TOUCH) {
-      touchRead(&touch);
-
-      if(abs(slider_hue_x + 8 - touch.px) < 16 && abs(SLIDER_HUE_Y + 8 - touch.py) < 16) {
-        copy_slider_gfx(1, 1, slider_hue_gfx);
-        slider_hue_x = max(40, min(200, touch.px - 8));
-      } else {
-        copy_slider_gfx(1, 0, slider_hue_gfx);
-      }
-
-      if(abs(SLIDER_SAT_X + 8 - touch.px) < 16 && abs(slider_sat_y + 8 - touch.py) < 16) {
-        copy_slider_gfx(0, 1, slider_sat_gfx);
-        slider_sat_y = max(40, min(140, touch.py - 8));
-      } else {
-        copy_slider_gfx(0, 0, slider_sat_gfx);
-      }
-
-    } else {
-      copy_slider_gfx(1, 0, slider_hue_gfx);
-      copy_slider_gfx(0, 0, slider_sat_gfx);
-    }
-
-    set_slider_gfx(SLIDER_HUE_ENTRY, slider_hue_x, SLIDER_HUE_Y, slider_hue_gfx);
-    set_slider_gfx(SLIDER_SAT_ENTRY, SLIDER_SAT_X, slider_sat_y, slider_sat_gfx);
-
-    /* draw_wheel(HUE_RESOLUTION, SAT_RESOLUTION); */
-
-    // Gfx update
-    swiWaitForVBlank();
-    oamUpdate(&oamSub);
+    draw_wheel(hue_resolution(slider_hue_x), sat_resolution(slider_sat_y));
   }
 }
