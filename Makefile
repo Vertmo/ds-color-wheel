@@ -174,6 +174,10 @@ else
 # main targets
 #---------------------------------------------------------------------------------
 $(OUTPUT).nds: $(OUTPUT).elf $(NITRO_FILES) $(GAME_ICON)
+	$(SILENTCMD)ndstool -c $@ -9 $< \
+		-g 4202 \
+		-b $(GAME_ICON) "$(GAME_TITLE);$(GAME_SUBTITLE1);$(GAME_SUBTITLE2)" $(_ADDFILES)
+	$(SILENTMSG) built ... $(notdir $@)
 $(OUTPUT).elf: $(OFILES)
 
 # source files depend on generated headers
@@ -211,7 +215,7 @@ $(SOUNDBANK) : $(MODFILES)
 $(GAME_ICON): $(notdir $(ICON))
 #---------------------------------------------------------------------------------
 	@echo convert $(notdir $<)
-	@grit $< -g -gt -gB4 -gT FF00FF -m! -p -pe 16 -fh! -ftr
+	@grit $< -g -gt -gB4 -gT 000000 -m! -p -pe 16 -fh! -ftr
 
 -include $(DEPSDIR)/*.d
 
