@@ -7,8 +7,8 @@ $(error "Please set DEVKITARM in your environment. export DEVKITARM=<path to>dev
 endif
 
 # These set the information text in the nds file
-GAME_TITLE     := Sand
-GAME_SUBTITLE1 := an Interactive Experience
+GAME_TITLE     := Wheel of Colors
+GAME_SUBTITLE1 := an Interactive Experiment
 GAME_SUBTITLE2 := by Basile Pesin
 
 include $(DEVKITARM)/ds_rules
